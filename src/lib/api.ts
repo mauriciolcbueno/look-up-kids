@@ -1,5 +1,46 @@
 import { currentJwt } from "./identity";
 
+export interface ServerProfile {
+  nickname: string;
+  school: string;
+  email: string | null;
+  updatedAt: number;
+  createdAt: number;
+}
+
+export async function fetchProfile(): Promise<ServerProfile | null> {
+  const token = await currentJwt();
+  if (!token) return null;
+  try {
+    const res = await fetch("/.netlify/functions/profile", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as ServerProfile | null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveProfile(nickname: string, school: string): Promise<ServerProfile | null> {
+  const token = await currentJwt();
+  if (!token) return null;
+  try {
+    const res = await fetch("/.netlify/functions/profile", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ nickname, school }),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as ServerProfile;
+  } catch {
+    return null;
+  }
+}
+
 export interface AskResult {
   status: "ok" | "blocked" | "error";
   answer?: string;

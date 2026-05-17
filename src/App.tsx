@@ -5,6 +5,7 @@ import Index from "./pages/Index";
 import AdminDashboard from "./pages/AdminDashboard";
 import AuthGate from "./components/AuthGate";
 import ProfileSetup from "./components/ProfileSetup";
+import { fetchProfile } from "@/lib/api";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -26,6 +27,31 @@ export default function App() {
       netlifyIdentity.off("logout");
     };
   }, []);
+
+  // On any user change, if the server has a profile but local cache doesn't,
+  // hydrate localStorage so the rest of the app sees it. Lets a kid sign in
+  // from a new device and skip the ProfileSetup form.
+  useEffect(() => {
+    if (!user) return;
+    const stashKey = `lookup:profile:${user.id ?? user.email}`;
+    let stashed: { nickname?: string; school?: string } = {};
+    try {
+      stashed = JSON.parse(localStorage.getItem(stashKey) ?? "{}");
+    } catch { /* ignore */ }
+    if (stashed.nickname && stashed.school) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const meta = (user.user_metadata ?? {}) as any;
+    if (meta.nickname && meta.school) return;
+    fetchProfile().then((p) => {
+      if (p?.nickname && p?.school) {
+        try {
+          localStorage.setItem(stashKey, JSON.stringify({ nickname: p.nickname, school: p.school }));
+          // Trigger a re-render so the new fallback gets picked up
+          setUser({ ...user });
+        } catch { /* ignore */ }
+      }
+    });
+  }, [user]);
 
   if (!ready) return null;
 

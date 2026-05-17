@@ -23,12 +23,22 @@ interface Stats {
   recent: { name: string; day: string; ts: number; userId: string; props: Record<string, unknown> }[];
 }
 
+interface Profile {
+  userId: string;
+  nickname: string;
+  school: string;
+  email: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
 interface Props {
   user: User | null;
 }
 
 export default function AdminDashboard({ user }: Props) {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [profiles, setProfiles] = useState<Profile[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,11 +47,17 @@ export default function AdminDashboard({ user }: Props) {
     setError(null);
     try {
       const token = await jwtFor(user);
-      const res = await fetch("/.netlify/functions/admin-stats", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error(`${res.status}`);
-      setStats(await res.json());
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const [statsRes, profRes] = await Promise.all([
+        fetch("/.netlify/functions/admin-stats", { headers }),
+        fetch("/.netlify/functions/admin-profiles", { headers }),
+      ]);
+      if (!statsRes.ok) throw new Error(`stats ${statsRes.status}`);
+      setStats(await statsRes.json());
+      if (profRes.ok) {
+        const data = (await profRes.json()) as { profiles: Profile[] };
+        setProfiles(data.profiles);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -145,6 +161,43 @@ export default function AdminDashboard({ user }: Props) {
               </ResponsiveContainer>
             </div>
           </div>
+
+          {profiles && (
+            <div className="bg-card rounded-3xl shadow-soft p-5 mb-6">
+              <h2 className="font-extrabold mb-1">Registered users</h2>
+              <p className="text-xs text-muted-foreground font-semibold mb-3">
+                {profiles.length} {profiles.length === 1 ? "kid has" : "kids have"} set up their profile.
+              </p>
+              {profiles.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No profiles yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="text-left text-muted-foreground">
+                      <tr>
+                        <th className="py-1.5 pr-4">Nickname</th>
+                        <th className="py-1.5 pr-4">School</th>
+                        <th className="py-1.5 pr-4">Email</th>
+                        <th className="py-1.5">Joined</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profiles.map((p) => (
+                        <tr key={p.userId} className="border-t border-muted">
+                          <td className="py-1.5 pr-4 font-bold">{p.nickname}</td>
+                          <td className="py-1.5 pr-4">{p.school}</td>
+                          <td className="py-1.5 pr-4 font-mono text-[10px]">{p.email ?? "—"}</td>
+                          <td className="py-1.5 font-mono text-[10px]">
+                            {new Date(p.createdAt).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="bg-card rounded-3xl shadow-soft p-5">
             <h2 className="font-extrabold mb-3">Recent activity (last 30)</h2>

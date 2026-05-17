@@ -3,6 +3,7 @@ import netlifyIdentity, { type User } from "netlify-identity-widget";
 import { motion } from "framer-motion";
 import { UserCircle, School, ArrowRight, Loader2 } from "lucide-react";
 import Wordmark from "./Wordmark";
+import { saveProfile } from "@/lib/api";
 
 interface Props {
   user: User;
@@ -49,11 +50,17 @@ export default function ProfileSetup({ user, onComplete }: Props) {
       user_metadata: { ...(cu.user_metadata ?? {}), nickname: nick, school: sch },
     } as User;
 
-    // Try to persist to Netlify Identity in the background, but never block on it.
-    // gotrue.update() is observed to hang ~12s right after signup on some
-    // browsers (Safari iOS especially), so we race it against a short timeout
-    // and treat any failure as a no-op — the user already has their profile
-    // in localStorage and can use the app immediately.
+    // Server-side persistence (Netlify Blobs via /profile function). This is
+    // the authoritative store — cross-device, visible to admin. Don't block
+    // the UI on it; failures are tolerable because we still have localStorage.
+    saveProfile(nick, sch).catch((err) =>
+      console.warn("[ProfileSetup] saveProfile failed:", err)
+    );
+
+    // Best-effort: also push to Netlify Identity user_metadata so the user
+    // object has it natively. Known to hang on iOS Safari right after signup
+    // (see commit history), so we race against a short timeout and ignore
+    // any failure — the data is already on the server via /profile.
     if (typeof cu.update === "function") {
       const TIMEOUT_MS = 8000;
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -63,7 +70,6 @@ export default function ProfileSetup({ user, onComplete }: Props) {
         cu.update({ data: { nickname: nick, school: sch } }),
         timeoutPromise,
       ]).catch((err) => {
-        // Logged for observability; UI already moved on.
         console.warn("[ProfileSetup] gotrue update did not complete:", err);
       });
     } else {

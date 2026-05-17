@@ -149,6 +149,36 @@ export default function Index({ user }: Props) {
         </div>
       </motion.button>
 
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="w-full max-w-xl mb-4 mt-4"
+      >
+        <h2 className="text-xl font-extrabold text-foreground flex items-center gap-2">
+          🏆 Daily Challenges
+        </h2>
+        <p className="text-sm text-muted-foreground font-semibold">
+          5 fresh questions per session — come back tomorrow for more!
+        </p>
+      </motion.div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl mb-8">
+        {categories.map((cat, i) => (
+          <CategoryCard
+            key={cat.id}
+            category={cat}
+            index={i}
+            onClick={() => {
+              setSelectedCategory(cat.id);
+              setView("quiz");
+            }}
+          />
+        ))}
+      </div>
+
+      <Leaderboard />
+
       <motion.button
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -174,36 +204,6 @@ export default function Index({ user }: Props) {
           <ArrowRight size={20} className="text-accent-foreground" />
         </div>
       </motion.button>
-
-      <Leaderboard />
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="w-full max-w-xl mb-4"
-      >
-        <h2 className="text-xl font-extrabold text-foreground flex items-center gap-2">
-          🏆 Daily Challenges
-        </h2>
-        <p className="text-sm text-muted-foreground font-semibold">
-          5 fresh questions per session — come back tomorrow for more!
-        </p>
-      </motion.div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl">
-        {categories.map((cat, i) => (
-          <CategoryCard
-            key={cat.id}
-            category={cat}
-            index={i}
-            onClick={() => {
-              setSelectedCategory(cat.id);
-              setView("quiz");
-            }}
-          />
-        ))}
-      </div>
 
       <motion.p
         initial={{ opacity: 0 }}
