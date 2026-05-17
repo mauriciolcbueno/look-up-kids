@@ -47,7 +47,7 @@ export default function AdminDashboard({ user }: Props) {
     setError(null);
     try {
       const token = await jwtFor(user);
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const [statsRes, profRes] = await Promise.all([
         fetch("/.netlify/functions/admin-stats", { headers }),
         fetch("/.netlify/functions/admin-profiles", { headers }),
