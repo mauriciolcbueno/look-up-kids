@@ -41,17 +41,32 @@ export default function App() {
         } as unknown as User)
       : user;
 
-  // If user is logged in but hasn't set nickname/school yet, show profile setup
+  // If user is logged in but hasn't set nickname/school yet, show profile setup.
+  // We also accept a localStorage fallback (set by ProfileSetup if gotrue update fails)
+  // so the form doesn't reappear on every reload when Identity metadata sync misbehaves.
   if (effectiveUser) {
-    const meta = effectiveUser.user_metadata as Record<string, string> | undefined;
-    const hasProfile = meta?.nickname && meta?.school;
-    if (!hasProfile) {
+    const meta = (effectiveUser.user_metadata ?? {}) as Record<string, string>;
+    const stashKey = `lookup:profile:${effectiveUser.id ?? effectiveUser.email}`;
+    let fallback: { nickname?: string; school?: string } = {};
+    try {
+      const raw = localStorage.getItem(stashKey);
+      if (raw) fallback = JSON.parse(raw);
+    } catch {
+      /* ignore */
+    }
+    const nickname = meta.nickname ?? fallback.nickname;
+    const school = meta.school ?? fallback.school;
+    if (!nickname || !school) {
       return (
         <ProfileSetup
           user={effectiveUser}
           onComplete={(updated) => setUser(updated)}
         />
       );
+    }
+    // Make sure downstream components see the merged metadata
+    if ((!meta.nickname || !meta.school) && fallback.nickname && fallback.school) {
+      effectiveUser.user_metadata = { ...meta, nickname, school };
     }
   }
 

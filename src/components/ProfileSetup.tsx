@@ -25,14 +25,48 @@ export default function ProfileSetup({ user, onComplete }: Props) {
     }
     setSaving(true);
     setError("");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cu = netlifyIdentity.currentUser() as any;
+    if (!cu) {
+      setError("Sessão expirou. Faz login de novo.");
+      setSaving(false);
+      return;
+    }
+    if (typeof cu.update !== "function") {
+      // Fall back: stash locally and continue. App will re-read these on mount.
+      console.warn("[ProfileSetup] currentUser().update is not a function — using local fallback");
+      const patched = {
+        ...cu,
+        user_metadata: { ...(cu.user_metadata ?? {}), nickname: nick, school: sch },
+      } as User;
+      try {
+        localStorage.setItem(
+          `lookup:profile:${cu.id ?? cu.email}`,
+          JSON.stringify({ nickname: nick, school: sch })
+        );
+      } catch {
+        /* ignore quota issues */
+      }
+      onComplete(patched);
+      return;
+    }
+
+    const TIMEOUT_MS = 12000;
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+    );
+
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const updated = await (netlifyIdentity.currentUser() as any).update({
-        data: { nickname: nick, school: sch },
-      });
-      onComplete(updated as User);
+      const updated = (await Promise.race([
+        cu.update({ data: { nickname: nick, school: sch } }),
+        timeoutPromise,
+      ])) as User;
+      onComplete(updated ?? (netlifyIdentity.currentUser() as User));
     } catch (err) {
-      setError("Erro ao salvar. Tente novamente.");
+      console.error("[ProfileSetup] update failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`Erro ao salvar: ${msg}. Tente de novo ou recarrega a página.`);
       setSaving(false);
     }
   }
