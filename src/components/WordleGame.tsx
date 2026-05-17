@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, BookOpen, Lightbulb, RotateCw } from "lucide-react";
 import { wordOfTheDay } from "@/data/wikiWords";
 import { logEvent } from "@/lib/analytics";
+import { wordlePoints } from "@/lib/scoring";
 
 interface Props {
   onBack: () => void;
@@ -65,7 +66,10 @@ export default function WordleGame({ onBack }: Props) {
     logEvent("wordle_guess", { attempt: next.length, length: current.length });
     if (current === wod.word) {
       setStatus("won");
-      logEvent("wordle_won", { attempts: next.length });
+      logEvent("wordle_won", {
+        attempts: next.length,
+        points: wordlePoints(next.length),
+      });
     } else if (next.length >= ROWS) {
       setStatus("lost");
       logEvent("wordle_lost", { word: wod.word });
@@ -179,6 +183,9 @@ export default function WordleGame({ onBack }: Props) {
         {status === "won" && (
           <div className="bg-success/15 border-2 border-success/30 rounded-2xl p-3 text-center mb-3">
             <p className="font-extrabold">You got it! 🎉</p>
+            <p className="text-sm font-bold text-foreground">
+              +{wordlePoints(guesses.length)} points this week 🏆
+            </p>
             <a
               href={`https://en.wikipedia.org/wiki/${wod.wiki}`}
               target="_blank"

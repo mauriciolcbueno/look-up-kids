@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Check, X, Trophy, BookOpen } from "lucide-react";
 import { pickDaily, todayKey, type Category } from "@/data/quizData";
 import { logEvent } from "@/lib/analytics";
+import { quizPoints } from "@/lib/scoring";
 
 interface Props {
   category: Category;
@@ -20,11 +21,17 @@ export default function QuizGame({ category, onBack }: Props) {
   const [idx, setIdx] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [score, setScore] = useState(0);
+  const [points, setPoints] = useState(0);
   const [done, setDone] = useState(false);
+  const questionStartRef = useRef<number>(Date.now());
 
-  useMemo(() => {
+  useEffect(() => {
     logEvent("quiz_started", { category: category.id });
   }, [category.id]);
+
+  useEffect(() => {
+    questionStartRef.current = Date.now();
+  }, [idx]);
 
   const current = questions[idx];
 
@@ -32,11 +39,16 @@ export default function QuizGame({ category, onBack }: Props) {
     if (picked !== null) return;
     setPicked(i);
     const correct = i === current.answer;
+    const elapsedMs = Date.now() - questionStartRef.current;
+    const earned = quizPoints(correct, elapsedMs);
     if (correct) setScore((s) => s + 1);
+    if (earned > 0) setPoints((p) => p + earned);
     logEvent("quiz_question_answered", {
       category: category.id,
       questionIndex: idx,
       correct,
+      elapsedMs,
+      points: earned,
     });
     setTimeout(() => {
       if (idx + 1 >= questions.length) {
@@ -45,6 +57,7 @@ export default function QuizGame({ category, onBack }: Props) {
           category: category.id,
           score: correct ? score + 1 : score,
           total: questions.length,
+          points: points + earned,
         });
       } else {
         setIdx((n) => n + 1);
@@ -66,8 +79,11 @@ export default function QuizGame({ category, onBack }: Props) {
           <h2 className="text-3xl font-black mb-1">
             {pct >= 80 ? "Amazing!" : pct >= 50 ? "Great job!" : "Good try!"}
           </h2>
-          <p className="text-muted-foreground font-semibold mb-4">
+          <p className="text-muted-foreground font-semibold mb-2">
             You got <span className="text-foreground font-black">{score}</span> of {questions.length} right.
+          </p>
+          <p className="text-muted-foreground font-semibold mb-4">
+            <span className="text-foreground font-black text-xl">+{points}</span> points this week 🏆
           </p>
           <div className="flex gap-2 justify-center">
             <button

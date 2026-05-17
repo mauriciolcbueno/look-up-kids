@@ -6,7 +6,13 @@ export const handler: Handler = async (event) => {
     return { statusCode: 405, body: "Method not allowed" };
   }
 
-  let payload: { name?: string; props?: Record<string, unknown>; ts?: number; userId?: string };
+  let payload: {
+    name?: string;
+    props?: Record<string, unknown>;
+    ts?: number;
+    userId?: string;
+    displayName?: string;
+  };
   try {
     payload = JSON.parse(event.body ?? "{}");
   } catch {
@@ -24,6 +30,7 @@ export const handler: Handler = async (event) => {
     props: payload.props ?? {},
     ts: payload.ts ?? Date.now(),
     userId: payload.userId ?? "anon",
+    displayName: payload.displayName ?? "Guest",
     day,
   });
 

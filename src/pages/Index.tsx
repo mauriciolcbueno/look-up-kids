@@ -7,6 +7,7 @@ import CategoryCard from "@/components/CategoryCard";
 import QuizGame from "@/components/QuizGame";
 import AskAnything from "@/components/AskAnything";
 import WordleGame from "@/components/WordleGame";
+import Leaderboard from "@/components/Leaderboard";
 import { logEvent } from "@/lib/analytics";
 import {
   Sparkles,
@@ -171,6 +172,8 @@ export default function Index({ user }: Props) {
           <ArrowRight size={20} className="text-accent-foreground" />
         </div>
       </motion.button>
+
+      <Leaderboard />
 
       <motion.div
         initial={{ opacity: 0 }}

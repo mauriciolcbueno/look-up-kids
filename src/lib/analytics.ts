@@ -19,6 +19,8 @@ export async function logEvent(name: EventName, props: Record<string, unknown> =
   try {
     const user = netlifyIdentity.currentUser();
     const token = await currentJwt();
+    const displayName =
+      (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? "Guest";
     await fetch("/.netlify/functions/log-event", {
       method: "POST",
       headers: {
@@ -30,6 +32,7 @@ export async function logEvent(name: EventName, props: Record<string, unknown> =
         props,
         ts: Date.now(),
         userId: user?.id ?? "anon",
+        displayName,
       }),
     });
   } catch {
