@@ -66,7 +66,8 @@ export default function App() {
     }
     // Make sure downstream components see the merged metadata
     if ((!meta.nickname || !meta.school) && fallback.nickname && fallback.school) {
-      effectiveUser.user_metadata = { ...meta, nickname, school };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (effectiveUser as any).user_metadata = { ...meta, nickname, school };
     }
   }
 
