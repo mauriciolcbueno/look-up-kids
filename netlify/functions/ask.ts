@@ -76,35 +76,107 @@ async function fetchSummary(title: string): Promise<WikiSummary | null> {
   }
 }
 
-async function searchWikipedia(query: string): Promise<WikiSummary | null> {
-  const distilled = distillQuery(query);
-  // Try the distilled query first, fall back to the raw query if no hits.
-  for (const q of [distilled, query]) {
-    const searchURL = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
-      q
+async function openSearch(query: string): Promise<string[]> {
+  try {
+    const url = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(
+      query
+    )}&limit=5&namespace=0&format=json`;
+    const res = await fetch(url, { headers: WIKI_HEADERS });
+    if (!res.ok) return [];
+    const data = (await res.json()) as [string, string[], string[], string[]];
+    return data[1] ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function fullTextSearch(query: string): Promise<string[]> {
+  try {
+    const url = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
+      query
     )}&format=json&srlimit=5`;
-    const searchRes = await fetch(searchURL, { headers: WIKI_HEADERS });
-    if (!searchRes.ok) continue;
-    const searchData = (await searchRes.json()) as {
+    const res = await fetch(url, { headers: WIKI_HEADERS });
+    if (!res.ok) return [];
+    const data = (await res.json()) as {
       query?: { search?: Array<{ title: string }> };
     };
-    const hits = searchData.query?.search ?? [];
-    for (const hit of hits) {
-      const summary = await fetchSummary(hit.title);
-      if (summary && summary.extract.length > 60) return summary;
-    }
+    return (data.query?.search ?? []).map((h) => h.title);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Score how likely a Wikipedia title is to be a clean, canonical topic article
+ * (vs a list, book, year, question-titled stub, etc).
+ * Higher = better.
+ */
+function scoreTitle(title: string): number {
+  let score = 100;
+  if (/^List of\b/i.test(title)) score -= 70;
+  if (/\?$/.test(title)) score -= 60; // "Who Built the Pyramids?" (book)
+  if (/^\d{3,4}\b/.test(title)) score -= 40; // year-led specific events
+  if (/\b\d{4}\b/.test(title)) score -= 15; // year anywhere
+  if (/\(.+\)$/.test(title)) score -= 15; // disambiguating parens
+  if (/^Index of\b|^Outline of\b|^Timeline of\b/i.test(title)) score -= 60;
+  if (/^The\s/i.test(title)) score -= 5;
+  // Prefer concise titles — long titles are usually specific subtopics
+  const words = title.split(/\s+/).length;
+  score -= Math.max(0, words - 2) * 6;
+  return score;
+}
+
+async function searchWikipedia(query: string): Promise<WikiSummary | null> {
+  const distilled = distillQuery(query);
+
+  const pools = await Promise.all([
+    openSearch(distilled),
+    distilled !== query ? openSearch(query) : Promise.resolve<string[]>([]),
+    fullTextSearch(distilled),
+    distilled !== query ? fullTextSearch(query) : Promise.resolve<string[]>([]),
+  ]);
+
+  // Collect unique candidates with a base score from their pool rank.
+  const candidates = new Map<string, number>();
+  pools.forEach((pool, poolIdx) => {
+    // opensearch (poolIdx 0,1) gets a small bump as it tends toward canonical titles
+    const poolBonus = poolIdx < 2 ? 8 : 0;
+    pool.forEach((title, rank) => {
+      const rankBonus = Math.max(0, 5 - rank) * 2; // top of pool > bottom
+      const score = scoreTitle(title) + poolBonus + rankBonus;
+      const prev = candidates.get(title);
+      if (prev === undefined || score > prev) candidates.set(title, score);
+    });
+  });
+
+  const ranked = [...candidates.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([title]) => title);
+
+  for (const title of ranked) {
+    const summary = await fetchSummary(title);
+    if (summary && summary.extract.length > 60) return summary;
   }
   return null;
 }
 
 const SYSTEM_PROMPT = `You are LookUp!, a kind homework helper for kids aged 7-12.
-Rules you must follow without exception:
-- Answer ONLY from the Wikipedia excerpt provided. If the excerpt does not contain the answer, say "I couldn't find that in Wikipedia. Try asking it a different way!"
-- Use 2 to 4 short sentences. Plain words a 10-year-old understands. No jargon.
-- Never invent facts. Never quote sources other than the provided Wikipedia excerpt.
-- Don't give direct homework answers like a finished essay. Explain the idea and encourage them to write it in their own words.
-- If the topic is not appropriate for kids, refuse warmly and suggest a different topic.
-- Friendly, curious tone. No emojis in the answer itself (the UI adds those).`;
+
+You will be given a Wikipedia excerpt and a question. Follow these rules WITHOUT EXCEPTION:
+
+1) If the Wikipedia excerpt CONTAINS information that answers the question, answer using ONLY that information. 2 to 4 short sentences. Plain words a 10-year-old understands. No jargon.
+
+2) If the excerpt is about something different from the question (e.g. question is about why volcanoes erupt but excerpt is about a list of specific volcanoes), you MUST respond with EXACTLY this single sentence and NOTHING ELSE:
+"I couldn't find that in Wikipedia. Try asking it a different way!"
+Do NOT explain what the excerpt is about. Do NOT mention the word "excerpt", "article", "source", "Wikipedia". Do NOT suggest other search terms. Do NOT apologize. Just that one sentence.
+
+3) Never invent facts. Never break character. Never address yourself or your context — talk only to the kid.
+
+4) Don't write a finished essay or homework answer. Explain the idea and encourage the kid to put it in their own words.
+
+5) If the topic is not appropriate for kids, refuse warmly in one sentence and suggest changing the subject.
+
+6) Friendly, curious tone. No emojis in your answer (the app adds those).`;
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") {
