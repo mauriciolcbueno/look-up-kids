@@ -20,8 +20,8 @@
     "recharts": "^2.13.3"
   },
   "devDependencies": {
-    "@netlify/blobs": "^8.1.0",
-    "@netlify/functions": "^2.8.2",
+    "@netlify/blobs": "^10.7.7",
+    "@netlify/functions": "^5.2.1",
     "@types/netlify-identity-widget": "^1.9.6",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
