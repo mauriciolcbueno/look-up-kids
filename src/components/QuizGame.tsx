@@ -4,6 +4,7 @@ import { ArrowLeft, Check, X, Trophy, BookOpen } from "lucide-react";
 import { pickDaily, todayKey, type Category } from "@/data/quizData";
 import { logEvent } from "@/lib/analytics";
 import { quizPoints } from "@/lib/scoring";
+import { markQuizDoneToday } from "@/lib/dailyState";
 
 interface Props {
   category: Category;
@@ -56,6 +57,7 @@ export default function QuizGame({ category, onBack }: Props) {
     setTimeout(() => {
       if (idx + 1 >= questions.length) {
         setDone(true);
+        markQuizDoneToday(category.id);
         logEvent("quiz_completed", {
           category: category.id,
           score: correct ? score + 1 : score,

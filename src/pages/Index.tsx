@@ -9,6 +9,7 @@ import AskAnything from "@/components/AskAnything";
 import WordleGame from "@/components/WordleGame";
 import Leaderboard from "@/components/Leaderboard";
 import Wordmark from "@/components/Wordmark";
+import { isQuizDoneToday, isWordleDoneToday } from "@/lib/dailyState";
 import { logEvent } from "@/lib/analytics";
 import {
   Sparkles,
@@ -18,6 +19,7 @@ import {
   LogOut,
   Type,
   ShieldCheck,
+  Check,
 } from "lucide-react";
 
 type View = "home" | "quiz" | "ask" | "wordle";
@@ -31,12 +33,22 @@ const ADMIN_ROLE = "admin";
 export default function Index({ user }: Props) {
   const [view, setView] = useState<View>("home");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  // Bumped on every view change back to home so we re-read localStorage flags
+  const [doneTick, setDoneTick] = useState(0);
 
   const category = categories.find((c) => c.id === selectedCategory);
   const isAdmin = ((user?.app_metadata?.roles as string[] | undefined) ?? []).includes(ADMIN_ROLE);
 
+  const wordleDone = isWordleDoneToday();
+  const categoryDone = (id: string) => isQuizDoneToday(id);
+  const allCategoriesDone = categories.every((c) => categoryDone(c.id));
+  const everythingDone = wordleDone && allCategoriesDone;
+  // Reference doneTick so React keeps these recomputed across view changes
+  void doneTick;
+
   useEffect(() => {
     logEvent("page_view", { view });
+    if (view === "home") setDoneTick((n) => n + 1);
   }, [view]);
 
   if (view === "ask") {
@@ -170,12 +182,20 @@ export default function Index({ user }: Props) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={() => setView("wordle")}
-        className="w-full max-w-xl mb-8 bg-gradient-to-br from-accent to-accent/70 rounded-3xl p-5 cursor-pointer text-left shadow-playful relative overflow-hidden"
+        whileHover={wordleDone ? undefined : { scale: 1.02 }}
+        whileTap={wordleDone ? undefined : { scale: 0.97 }}
+        onClick={() => !wordleDone && setView("wordle")}
+        disabled={wordleDone}
+        className={`w-full max-w-xl mb-8 bg-gradient-to-br from-accent to-accent/70 rounded-3xl p-5 text-left shadow-playful relative overflow-hidden ${
+          wordleDone ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+        }`}
       >
         <div className="absolute top-0 right-0 w-24 h-24 bg-card/15 rounded-full -translate-y-6 translate-x-6" />
+        {wordleDone && (
+          <div className="absolute top-3 right-3 bg-success text-white rounded-full p-1.5 shadow-soft" aria-label="Completed today">
+            <Check size={14} strokeWidth={3} />
+          </div>
+        )}
         <div className="relative z-10 flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-card/25 flex items-center justify-center">
             <Type size={24} className="text-accent-foreground" />
@@ -185,12 +205,27 @@ export default function Index({ user }: Props) {
               WikiWord 🦉
             </h3>
             <p className="text-sm text-accent-foreground/80 font-semibold">
-              Guess today's 5-letter word. New one tomorrow!
+              {wordleDone
+                ? "Done today — new word tomorrow!"
+                : "Guess today's 5-letter word. New one tomorrow!"}
             </p>
           </div>
-          <ArrowRight size={20} className="text-accent-foreground" />
+          {!wordleDone && <ArrowRight size={20} className="text-accent-foreground" />}
         </div>
       </motion.button>
+
+      {everythingDone && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-xl mb-6 bg-success/15 border-2 border-success/30 rounded-2xl p-4 text-center"
+        >
+          <p className="font-extrabold text-foreground">🎉 Nice work — you've finished everything for today!</p>
+          <p className="text-sm font-semibold text-muted-foreground mt-1">
+            Come back tomorrow for fresh challenges. In the meantime, keep using Ask Anything!
+          </p>
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl mb-8">
         {categories.map((cat, i) => (
@@ -198,7 +233,9 @@ export default function Index({ user }: Props) {
             key={cat.id}
             category={cat}
             index={i}
+            done={categoryDone(cat.id)}
             onClick={() => {
+              if (categoryDone(cat.id)) return;
               setSelectedCategory(cat.id);
               setView("quiz");
             }}

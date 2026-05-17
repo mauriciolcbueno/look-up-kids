@@ -4,6 +4,7 @@ import { ArrowLeft, BookOpen, Lightbulb, RotateCw } from "lucide-react";
 import { wordOfTheDay } from "@/data/wikiWords";
 import { logEvent } from "@/lib/analytics";
 import { wordlePoints } from "@/lib/scoring";
+import { markWordleDoneToday } from "@/lib/dailyState";
 
 interface Props {
   onBack: () => void;
@@ -67,12 +68,14 @@ export default function WordleGame({ onBack }: Props) {
     if (current === wod.word) {
       setStatus("won");
       try { sessionStorage.setItem("lookup:justPlayed", "1"); } catch { /* ignore */ }
+      markWordleDoneToday();
       logEvent("wordle_won", {
         attempts: next.length,
         points: wordlePoints(next.length),
       });
     } else if (next.length >= ROWS) {
       setStatus("lost");
+      markWordleDoneToday();
       logEvent("wordle_lost", { word: wod.word });
     }
     setCurrent("");
