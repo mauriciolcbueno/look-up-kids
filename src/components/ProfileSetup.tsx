@@ -26,7 +26,8 @@ export default function ProfileSetup({ user, onComplete }: Props) {
     setSaving(true);
     setError("");
     try {
-      const updated = await netlifyIdentity.currentUser()!.update({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updated = await (netlifyIdentity.currentUser() as any).update({
         data: { nickname: nick, school: sch },
       });
       onComplete(updated as User);
