@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: linear-gradient(180deg, hsl(48 100% 96%) 0%, hsl(48 100% 92%) 100%);
+  color: hsl(230 35% 18%);
+  -webkit-font-smoothing: antialiased;
+  font-family: "Nunito", system-ui, sans-serif;
+}
+
+@layer utilities {
+  .text-gradient {
+    background-image: linear-gradient(135deg, hsl(280 80% 65%), hsl(330 85% 65%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .shadow-playful {
+    box-shadow: 0 12px 28px -10px hsl(280 80% 65% / 0.45),
+      0 4px 12px -4px hsl(230 35% 18% / 0.12);
+  }
+
+  .glass {
+    background: hsla(0, 0%, 100%, 0.75);
+    backdrop-filter: blur(8px);
+  }
+}
+
+button,
+[role="button"] {
+  touch-action: manipulation;
+}
