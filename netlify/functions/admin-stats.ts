@@ -1,5 +1,5 @@
 import type { Handler, HandlerEvent } from "@netlify/functions";
-import { getStore } from "@netlify/blobs";
+import { store } from "./_blobs";
 
 interface Event {
   name: string;
@@ -19,12 +19,12 @@ function isAdmin(event: HandlerEvent): boolean {
 export const handler: Handler = async (event) => {
   if (!isAdmin(event)) return { statusCode: 403, body: "Forbidden" };
 
-  const store = getStore({ name: "analytics", consistency: "strong" });
-  const { blobs } = await store.list();
+  const bucket = store("analytics", "strong");
+  const { blobs } = await bucket.list();
 
   const events: Event[] = [];
   for (const b of blobs) {
-    const data = await store.get(b.key, { type: "json" });
+    const data = await bucket.get(b.key, { type: "json" });
     if (data) events.push(data as Event);
   }
 

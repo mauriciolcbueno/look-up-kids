@@ -1,5 +1,5 @@
 import type { Handler } from "@netlify/functions";
-import { getStore } from "@netlify/blobs";
+import { store } from "./_blobs";
 import { isoWeekKey, startOfIsoWeek } from "../../src/lib/scoring";
 
 interface StoredEvent {
@@ -16,14 +16,14 @@ const SCORING_EVENTS = new Set(["quiz_question_answered", "wordle_won"]);
 export const handler: Handler = async (event) => {
   const limit = Math.min(parseInt(event.queryStringParameters?.limit ?? "3", 10) || 3, 20);
 
-  const store = getStore({ name: "analytics", consistency: "strong" });
-  const { blobs } = await store.list();
+  const bucket = store("analytics", "strong");
+  const { blobs } = await bucket.list();
 
   const weekStartMs = startOfIsoWeek().getTime();
   const totals = new Map<string, { displayName: string; points: number }>();
 
   for (const b of blobs) {
-    const data = (await store.get(b.key, { type: "json" })) as StoredEvent | null;
+    const data = (await bucket.get(b.key, { type: "json" })) as StoredEvent | null;
     if (!data) continue;
     if (!SCORING_EVENTS.has(data.name)) continue;
     if (data.ts < weekStartMs) continue;
