@@ -51,7 +51,8 @@ export const handler: Handler = async (event) => {
     statusCode: 200,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=60",
+      // Short cache: leaderboards should feel live after a kid finishes a game.
+      "Cache-Control": "public, max-age=10",
     },
     body: JSON.stringify({
       week: isoWeekKey(),

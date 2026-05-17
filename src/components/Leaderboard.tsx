@@ -36,22 +36,49 @@ export default function Leaderboard() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+
+    async function load(silent = false) {
+      if (!silent) setLoading(true);
       try {
-        const res = await fetch("/.netlify/functions/leaderboard?limit=3");
+        // cache-bust each call so we don't see stale data right after a game
+        const res = await fetch(
+          `/.netlify/functions/leaderboard?limit=3&_=${Date.now()}`,
+          { cache: "no-store" }
+        );
         if (!res.ok) throw new Error(`${res.status}`);
         const ct = res.headers.get("content-type") ?? "";
         if (!ct.includes("application/json")) throw new Error("non-json");
         const json: ApiResponse = await res.json();
-        if (!cancelled) setData(json);
+        if (!cancelled) {
+          setData(json);
+          setReachable(true);
+        }
       } catch {
         if (!cancelled) setReachable(false);
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
+    }
+
+    // Initial load
+    load();
+
+    // If a game was just played in this tab, retry once after 3s — gives
+    // Netlify Blobs eventual consistency time to surface the new event.
+    let retryId: number | undefined;
+    if (sessionStorage.getItem("lookup:justPlayed") === "1") {
+      sessionStorage.removeItem("lookup:justPlayed");
+      retryId = window.setTimeout(() => load(true), 3000);
+    }
+
+    // Refresh whenever the tab regains focus
+    const onFocus = () => load(true);
+    window.addEventListener("focus", onFocus);
+
     return () => {
       cancelled = true;
+      if (retryId) clearTimeout(retryId);
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 

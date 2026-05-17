@@ -42,7 +42,10 @@ export default function QuizGame({ category, onBack }: Props) {
     const elapsedMs = Date.now() - questionStartRef.current;
     const earned = quizPoints(correct, elapsedMs);
     if (correct) setScore((s) => s + 1);
-    if (earned > 0) setPoints((p) => p + earned);
+    if (earned > 0) {
+      setPoints((p) => p + earned);
+      try { sessionStorage.setItem("lookup:justPlayed", "1"); } catch { /* ignore */ }
+    }
     logEvent("quiz_question_answered", {
       category: category.id,
       questionIndex: idx,

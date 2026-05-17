@@ -66,6 +66,7 @@ export default function WordleGame({ onBack }: Props) {
     logEvent("wordle_guess", { attempt: next.length, length: current.length });
     if (current === wod.word) {
       setStatus("won");
+      try { sessionStorage.setItem("lookup:justPlayed", "1"); } catch { /* ignore */ }
       logEvent("wordle_won", {
         attempts: next.length,
         points: wordlePoints(next.length),
