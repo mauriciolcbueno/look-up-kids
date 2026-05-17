@@ -21,12 +21,6 @@ export default function AuthGate({ user, requireAdmin, children }: Props) {
           animate={{ scale: 1, opacity: 1 }}
           className="bg-card rounded-3xl shadow-playful p-8 max-w-md w-full"
         >
-          <img
-            src="/icon.svg"
-            alt=""
-            aria-hidden="true"
-            className="w-20 h-20 mx-auto mb-4 rounded-2xl shadow-soft"
-          />
           <div className="flex justify-center mb-3">
             <Wordmark size="md" pill />
           </div>

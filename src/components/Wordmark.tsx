@@ -33,7 +33,7 @@ export default function Wordmark({ size = "md", variant = "light", className = "
       <div
         className={`flex items-center font-black tracking-tighter leading-none ${TEXT_SIZE[size]} ${textColor}`}
         style={{ letterSpacing: "-0.05em" }}
-        aria-label="LookUp"
+        aria-label="LookUp kids"
       >
         <span>L</span>
         <span className={`relative inline-block ${LENS_OFFSET[size]}`} aria-hidden="true">
@@ -59,7 +59,7 @@ export default function Wordmark({ size = "md", variant = "light", className = "
           className={`mt-2 rounded-full font-extrabold text-[10px] md:text-xs px-3 py-1 uppercase ${pillBg}`}
           style={{ letterSpacing: "0.16em" }}
         >
-          For Kids
+Kids
         </div>
       )}
     </div>
