@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -11,10 +11,13 @@ import {
   Sparkles,
   ShieldAlert,
   Loader2,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { askQuestion, type AskResult } from "@/lib/api";
 import { speak, pauseSpeech, resumeSpeech, stopSpeech } from "@/lib/tts";
 import { logEvent } from "@/lib/analytics";
+import { isVoiceInputSupported, startListening, type VoiceSession } from "@/lib/voiceInput";
 
 interface Props {
   onBack: () => void;
@@ -27,7 +30,38 @@ export default function AskAnything({ onBack }: Props) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AskResult | null>(null);
   const [audio, setAudio] = useState<AudioState>("idle");
+  const [listening, setListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const voiceRef = useRef<VoiceSession | null>(null);
   const lastQuestionRef = useRef<string>("");
+
+  useEffect(() => {
+    setVoiceSupported(isVoiceInputSupported());
+    return () => voiceRef.current?.stop();
+  }, []);
+
+  function toggleVoice() {
+    if (listening) {
+      voiceRef.current?.stop();
+      voiceRef.current = null;
+      setListening(false);
+      return;
+    }
+    setListening(true);
+    voiceRef.current = startListening(
+      (text, isFinal) => {
+        setQuestion(text);
+        if (isFinal) {
+          voiceRef.current?.stop();
+          voiceRef.current = null;
+          setListening(false);
+        }
+      },
+      () => setListening(false),
+      () => setListening(false)
+    );
+    if (!voiceRef.current) setListening(false);
+  }
 
   async function ask(e?: React.FormEvent) {
     e?.preventDefault();
@@ -106,11 +140,29 @@ export default function AskAnything({ onBack }: Props) {
           <input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="e.g. Why is the sky blue?"
-            className="flex-1 rounded-2xl border-2 border-muted focus:border-primary outline-none px-4 py-3 font-semibold bg-background"
+            placeholder={listening ? "Listening… speak now" : "e.g. Why is the sky blue?"}
+            className={`flex-1 rounded-2xl border-2 outline-none px-4 py-3 font-semibold bg-background ${
+              listening ? "border-secondary animate-pulse" : "border-muted focus:border-primary"
+            }`}
             maxLength={200}
             aria-label="Your question"
           />
+          {voiceSupported && (
+            <button
+              type="button"
+              onClick={toggleVoice}
+              disabled={loading}
+              className={`px-3 py-3 rounded-2xl shadow-soft hover:scale-105 active:scale-95 transition ${
+                listening
+                  ? "bg-danger text-white animate-pulse"
+                  : "bg-accent text-accent-foreground"
+              }`}
+              aria-label={listening ? "Stop listening" : "Speak your question"}
+              title={listening ? "Stop listening" : "Speak your question"}
+            >
+              {listening ? <MicOff size={20} /> : <Mic size={20} />}
+            </button>
+          )}
           <button
             type="submit"
             disabled={loading || !question.trim()}
