@@ -25,29 +25,76 @@ interface WikiSummary {
   url: string;
 }
 
-async function searchWikipedia(query: string): Promise<WikiSummary | null> {
-  const searchURL = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
-    query
-  )}&format=json&origin=*&srlimit=1`;
-  const searchRes = await fetch(searchURL);
-  if (!searchRes.ok) return null;
-  const searchData = (await searchRes.json()) as { query?: { search?: Array<{ title: string }> } };
-  const top = searchData.query?.search?.[0];
-  if (!top) return null;
+// Wikipedia requires a descriptive User-Agent per their policy or they may
+// throttle/reject. https://meta.wikimedia.org/wiki/User-Agent_policy
+const WIKI_HEADERS = {
+  "User-Agent": "LookUpKids/1.0 (https://lookupkids.netlify.app; school project)",
+  Accept: "application/json",
+};
 
-  const summaryURL = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(top.title)}`;
-  const summaryRes = await fetch(summaryURL);
-  if (!summaryRes.ok) return null;
-  const summary = (await summaryRes.json()) as {
-    title: string;
-    extract: string;
-    content_urls?: { desktop?: { page?: string } };
-  };
-  return {
-    title: summary.title,
-    extract: summary.extract,
-    url: summary.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encodeURIComponent(top.title)}`,
-  };
+// Strip common question words so search ranks topical nouns higher.
+// "How does an octopus camouflage?" -> "octopus camouflage"
+function distillQuery(q: string): string {
+  const stop = new Set([
+    "how", "does", "do", "did", "is", "are", "was", "were", "the", "a", "an",
+    "what", "who", "when", "where", "why", "which", "can", "could", "would",
+    "should", "of", "in", "on", "to", "for", "by", "with", "and", "or", "but",
+    "tell", "me", "about", "explain",
+  ]);
+  const cleaned = q
+    .toLowerCase()
+    .replace(/[?!.,;:]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w && !stop.has(w))
+    .join(" ")
+    .trim();
+  return cleaned || q;
+}
+
+async function fetchSummary(title: string): Promise<WikiSummary | null> {
+  try {
+    const summaryURL = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+    const summaryRes = await fetch(summaryURL, { headers: WIKI_HEADERS });
+    if (!summaryRes.ok) return null;
+    const summary = (await summaryRes.json()) as {
+      title: string;
+      extract?: string;
+      type?: string;
+      content_urls?: { desktop?: { page?: string } };
+    };
+    // Disambiguation pages have no useful extract.
+    if (summary.type === "disambiguation" || !summary.extract) return null;
+    return {
+      title: summary.title,
+      extract: summary.extract,
+      url:
+        summary.content_urls?.desktop?.page ??
+        `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function searchWikipedia(query: string): Promise<WikiSummary | null> {
+  const distilled = distillQuery(query);
+  // Try the distilled query first, fall back to the raw query if no hits.
+  for (const q of [distilled, query]) {
+    const searchURL = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
+      q
+    )}&format=json&srlimit=5`;
+    const searchRes = await fetch(searchURL, { headers: WIKI_HEADERS });
+    if (!searchRes.ok) continue;
+    const searchData = (await searchRes.json()) as {
+      query?: { search?: Array<{ title: string }> };
+    };
+    const hits = searchData.query?.search ?? [];
+    for (const hit of hits) {
+      const summary = await fetchSummary(hit.title);
+      if (summary && summary.extract.length > 60) return summary;
+    }
+  }
+  return null;
 }
 
 const SYSTEM_PROMPT = `You are LookUp!, a kind homework helper for kids aged 7-12.

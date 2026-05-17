@@ -73,7 +73,10 @@ export default function Index({ user }: Props) {
     <div className="min-h-screen flex flex-col items-center px-4 py-10">
       <div className="w-full max-w-xl flex justify-between items-center mb-4">
         <span className="text-xs font-bold text-muted-foreground">
-          Hi, {user?.user_metadata?.full_name ?? user?.email ?? "friend"} 👋
+          Hi, {(() => {
+            const meta = (user?.user_metadata ?? {}) as Record<string, string | undefined>;
+            return meta.nickname || meta.full_name || user?.email || "friend";
+          })()} 👋
         </span>
         <div className="flex items-center gap-2">
           {isAdmin && (
