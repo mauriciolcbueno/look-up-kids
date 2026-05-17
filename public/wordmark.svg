@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 220" role="img" aria-label="LookUp">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&amp;display=swap');
+      .lookup-text { font: 900 220px 'Nunito', system-ui, sans-serif; fill: #14213D; letter-spacing: -8.8px; }
+    </style>
+  </defs>
+
+  <text class="lookup-text" x="20" y="172">LookUp</text>
+
+  <g transform="translate(196 30)">
+    <rect x="92" y="64" width="14" height="52" rx="7" ry="7" fill="#FF6A4D" transform="rotate(-40 99 90)"/>
+    <circle cx="55" cy="55" r="50" fill="none" stroke="#FF6A4D" stroke-width="14"/>
+    <circle cx="40" cy="40" r="9" fill="#FFFFFF" fill-opacity="0.55"/>
+  </g>
+</svg>

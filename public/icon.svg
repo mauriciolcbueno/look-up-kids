@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LookUp kids app icon">
+  
+  <rect x="0" y="0" width="512" height="512" rx="112" ry="112" fill="#FFC83D"></rect>
+  
+  <rect x="318" y="316" width="44" height="146" rx="22" ry="22" fill="#14213D" transform="rotate(-40 340 389)"></rect>
+  
+  <circle cx="232" cy="240" r="124" fill="none" stroke="#14213D" stroke-width="44"></circle>
+  
+  <circle cx="194" cy="200" r="20" fill="#FFFFFF" fill-opacity="0.45"></circle>
+</svg>

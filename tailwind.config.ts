@@ -5,34 +5,41 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: "hsl(48 100% 96%)",
-        foreground: "hsl(230 35% 18%)",
-        card: "hsl(0 0% 100%)",
+        // LookUp brand palette
+        ink: "#14213D",
+        sun: "#FFC83D",
+        coral: "#FF6A4D",
+        cream: "#FFF8EC",
+        warm: "#FFE9B8",
+
+        background: "#FFF8EC",
+        foreground: "#14213D",
+        card: "#FFFFFF",
         muted: {
-          DEFAULT: "hsl(220 14% 96%)",
-          foreground: "hsl(230 15% 45%)",
+          DEFAULT: "#FFE9B8",
+          foreground: "#6B6F7C",
         },
         primary: {
-          DEFAULT: "hsl(45 100% 60%)",
-          foreground: "hsl(230 35% 18%)",
+          DEFAULT: "#FFC83D",
+          foreground: "#14213D",
         },
         secondary: {
-          DEFAULT: "hsl(280 80% 65%)",
-          foreground: "hsl(0 0% 100%)",
+          DEFAULT: "#FF6A4D",
+          foreground: "#FFF8EC",
         },
         accent: {
-          DEFAULT: "hsl(190 90% 55%)",
-          foreground: "hsl(230 35% 18%)",
+          DEFAULT: "#14213D",
+          foreground: "#FFF8EC",
         },
-        success: "hsl(150 70% 45%)",
-        danger: "hsl(0 75% 60%)",
+        success: "hsl(150 70% 40%)",
+        danger: "#E5523A",
       },
       fontFamily: {
         sans: ["Nunito", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        playful: "0 8px 24px -8px hsl(280 80% 65% / 0.4)",
-        soft: "0 4px 14px -4px hsl(230 35% 18% / 0.1)",
+        playful: "0 10px 28px -10px rgba(255, 106, 77, 0.45), 0 4px 12px -4px rgba(20, 33, 61, 0.12)",
+        soft: "0 4px 14px -4px rgba(20, 33, 61, 0.12)",
       },
       animation: {
         "pop-in": "popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)",

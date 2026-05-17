@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LookUp kids magnifier">
+  
+  <rect x="318" y="316" width="44" height="146" rx="22" ry="22" fill="#FF6A4D" transform="rotate(-40 340 389)"></rect>
+  <circle cx="232" cy="240" r="124" fill="none" stroke="#FF6A4D" stroke-width="44"></circle>
+  <circle cx="194" cy="200" r="20" fill="#FFFFFF" fill-opacity="0.5"></circle>
+</svg>

@@ -8,6 +8,7 @@ import QuizGame from "@/components/QuizGame";
 import AskAnything from "@/components/AskAnything";
 import WordleGame from "@/components/WordleGame";
 import Leaderboard from "@/components/Leaderboard";
+import Wordmark from "@/components/Wordmark";
 import { logEvent } from "@/lib/analytics";
 import {
   Sparkles,
@@ -95,10 +96,10 @@ export default function Index({ user }: Props) {
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="text-center mb-8"
+        className="text-center mb-8 flex flex-col items-center"
       >
         <motion.div
-          className="inline-flex items-center gap-2 bg-primary/30 rounded-full px-4 py-1.5 mb-4"
+          className="inline-flex items-center gap-2 bg-primary/40 rounded-full px-4 py-1.5 mb-5"
           animate={{ scale: [1, 1.03, 1] }}
           transition={{ repeat: Infinity, duration: 3 }}
         >
@@ -107,9 +108,7 @@ export default function Index({ user }: Props) {
             Ask Wikipedia and let AI help you
           </span>
         </motion.div>
-        <h1 className="text-5xl md:text-6xl font-black text-foreground mb-3">
-          LookUp<span className="text-gradient">!</span>
-        </h1>
+        <Wordmark size="lg" className="mb-3" />
         <p className="text-lg text-muted-foreground font-semibold max-w-md mx-auto">
           Pick a topic and test your knowledge with amazing questions! 🧠
         </p>

@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import netlifyIdentity, { type User } from "netlify-identity-widget";
 import { motion } from "framer-motion";
 import { LogIn, Lock } from "lucide-react";
+import Wordmark from "./Wordmark";
 
 interface Props {
   user: User | null;
@@ -20,10 +21,16 @@ export default function AuthGate({ user, requireAdmin, children }: Props) {
           animate={{ scale: 1, opacity: 1 }}
           className="bg-card rounded-3xl shadow-playful p-8 max-w-md w-full"
         >
-          <div className="text-6xl mb-4">🦉</div>
-          <h1 className="text-3xl font-black mb-2">
-            Welcome to LookUp<span className="text-gradient">!</span>
-          </h1>
+          <img
+            src="/icon.svg"
+            alt=""
+            aria-hidden="true"
+            className="w-20 h-20 mx-auto mb-4 rounded-2xl shadow-soft"
+          />
+          <div className="flex justify-center mb-3">
+            <Wordmark size="md" pill />
+          </div>
+          <h1 className="sr-only">Welcome to LookUp kids</h1>
           <p className="text-muted-foreground font-semibold mb-6">
             A safe homework helper powered by Wikipedia. Ask a grown-up to sign you in.
           </p>
