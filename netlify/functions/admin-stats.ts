@@ -20,7 +20,7 @@ export const handler: Handler = async (event) => {
   if (!isAdmin(event)) return { statusCode: 403, body: "Forbidden" };
 
   bindBlobs(event);
-  const bucket = store("analytics", "strong");
+  const bucket = store("analytics", "eventual");
   const { blobs } = await bucket.list();
 
   const events: Event[] = [];

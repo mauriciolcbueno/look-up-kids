@@ -17,7 +17,7 @@ export const handler: Handler = async (event) => {
   const limit = Math.min(parseInt(event.queryStringParameters?.limit ?? "3", 10) || 3, 20);
 
   bindBlobs(event);
-  const bucket = store("analytics", "strong");
+  const bucket = store("analytics", "eventual");
   const { blobs } = await bucket.list();
 
   const weekStartMs = startOfIsoWeek().getTime();
