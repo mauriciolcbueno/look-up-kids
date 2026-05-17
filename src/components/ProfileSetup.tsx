@@ -33,42 +33,44 @@ export default function ProfileSetup({ user, onComplete }: Props) {
       setSaving(false);
       return;
     }
-    if (typeof cu.update !== "function") {
-      // Fall back: stash locally and continue. App will re-read these on mount.
-      console.warn("[ProfileSetup] currentUser().update is not a function — using local fallback");
-      const patched = {
-        ...cu,
-        user_metadata: { ...(cu.user_metadata ?? {}), nickname: nick, school: sch },
-      } as User;
-      try {
-        localStorage.setItem(
-          `lookup:profile:${cu.id ?? cu.email}`,
-          JSON.stringify({ nickname: nick, school: sch })
-        );
-      } catch {
-        /* ignore quota issues */
-      }
-      onComplete(patched);
-      return;
+
+    // Always stash locally up front so the user can proceed regardless of what
+    // gotrue does. App.tsx + analytics.ts read this fallback when user_metadata
+    // is missing the fields.
+    const stashKey = `lookup:profile:${cu.id ?? cu.email}`;
+    try {
+      localStorage.setItem(stashKey, JSON.stringify({ nickname: nick, school: sch }));
+    } catch {
+      /* ignore quota issues */
     }
 
-    const TIMEOUT_MS = 12000;
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
-    );
+    const patched = {
+      ...cu,
+      user_metadata: { ...(cu.user_metadata ?? {}), nickname: nick, school: sch },
+    } as User;
 
-    try {
-      const updated = (await Promise.race([
+    // Try to persist to Netlify Identity in the background, but never block on it.
+    // gotrue.update() is observed to hang ~12s right after signup on some
+    // browsers (Safari iOS especially), so we race it against a short timeout
+    // and treat any failure as a no-op — the user already has their profile
+    // in localStorage and can use the app immediately.
+    if (typeof cu.update === "function") {
+      const TIMEOUT_MS = 8000;
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+      );
+      Promise.race([
         cu.update({ data: { nickname: nick, school: sch } }),
         timeoutPromise,
-      ])) as User;
-      onComplete(updated ?? (netlifyIdentity.currentUser() as User));
-    } catch (err) {
-      console.error("[ProfileSetup] update failed:", err);
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(`Erro ao salvar: ${msg}. Tente de novo ou recarrega a página.`);
-      setSaving(false);
+      ]).catch((err) => {
+        // Logged for observability; UI already moved on.
+        console.warn("[ProfileSetup] gotrue update did not complete:", err);
+      });
+    } else {
+      console.warn("[ProfileSetup] currentUser().update is not a function");
     }
+
+    onComplete(patched);
   }
 
   return (
