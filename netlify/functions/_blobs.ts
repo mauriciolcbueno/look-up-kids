@@ -12,9 +12,12 @@ import type { HandlerEvent } from "@netlify/functions";
  */
 export function bindBlobs(event: HandlerEvent) {
   try {
-    connectLambda(event);
+    // The HandlerEvent type doesn't declare the `blobs` field, but the
+    // Netlify runtime adds it on the wire. connectLambda reads it from there.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    connectLambda(event as any);
   } catch {
-    /* connectLambda is a no-op if context isn't there (local dev) */
+    /* no-op if context isn't there (local dev) */
   }
 }
 
