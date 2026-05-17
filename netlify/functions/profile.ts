@@ -1,4 +1,11 @@
-import type { Handler } from "@netlify/functions";
+import type { Handler, HandlerResponse } from "@netlify/functions";
+
+const JSON_HEADERS = { "Content-Type": "application/json" };
+const NO_CACHE = { "Content-Type": "application/json", "Cache-Control": "no-store" };
+
+function res(statusCode: number, body: unknown, headers: Record<string, string> = JSON_HEADERS): HandlerResponse {
+  return { statusCode, headers, body: typeof body === "string" ? body : JSON.stringify(body) };
+}
 import { bindBlobs, store } from "./_blobs";
 
 interface StoredProfile {
@@ -30,12 +37,7 @@ function userFromEvent(event: import("@netlify/functions").HandlerEvent): Netlif
 export const handler: Handler = async (event) => {
   const user = userFromEvent(event);
   const userId = user?.sub;
-  if (!userId) {
-    return {
-      statusCode: 401,
-      body: JSON.stringify({ status: "error", reason: "Auth required" }),
-    };
-  }
+  if (!userId) return res(401, { status: "error", reason: "Auth required" });
 
   bindBlobs(event);
   const bucket = store("profiles", "eventual");
@@ -43,11 +45,7 @@ export const handler: Handler = async (event) => {
 
   if (event.httpMethod === "GET") {
     const data = (await bucket.get(key, { type: "json" })) as StoredProfile | null;
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-      body: JSON.stringify(data ?? null),
-    };
+    return res(200, data ?? null, NO_CACHE);
   }
 
   if (event.httpMethod === "POST" || event.httpMethod === "PUT") {
@@ -55,15 +53,12 @@ export const handler: Handler = async (event) => {
     try {
       payload = JSON.parse(event.body ?? "{}");
     } catch {
-      return { statusCode: 400, body: "Bad JSON" };
+      return res(400, { status: "error", reason: "Bad JSON" });
     }
     const nickname = (payload.nickname ?? "").trim().slice(0, 40);
     const school = (payload.school ?? "").trim().slice(0, 100);
     if (!nickname || !school) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ status: "error", reason: "nickname and school required" }),
-      };
+      return res(400, { status: "error", reason: "nickname and school required" });
     }
     const existing = (await bucket.get(key, { type: "json" })) as StoredProfile | null;
     const now = Date.now();
@@ -75,12 +70,8 @@ export const handler: Handler = async (event) => {
       createdAt: existing?.createdAt ?? now,
     };
     await bucket.setJSON(key, profile);
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(profile),
-    };
+    return res(200, profile);
   }
 
-  return { statusCode: 405, body: "Method not allowed" };
+  return res(405, { status: "error", reason: "Method not allowed" });
 };
