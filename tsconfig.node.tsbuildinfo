@@ -1,1 +1,0 @@
-{"root":["./vite.config.ts","./netlify/functions/admin-stats.ts","./netlify/functions/ask.ts","./netlify/functions/log-event.ts"],"version":"5.9.3"}
