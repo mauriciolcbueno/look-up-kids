@@ -159,23 +159,9 @@ export default function Index({ user }: Props) {
           🏆 Daily Challenges
         </h2>
         <p className="text-sm text-muted-foreground font-semibold">
-          5 fresh questions per session — come back tomorrow for more!
+          Track your rank, guess the word, and tackle a quiz — fresh every day!
         </p>
       </motion.div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl mb-8">
-        {categories.map((cat, i) => (
-          <CategoryCard
-            key={cat.id}
-            category={cat}
-            index={i}
-            onClick={() => {
-              setSelectedCategory(cat.id);
-              setView("quiz");
-            }}
-          />
-        ))}
-      </div>
 
       <Leaderboard />
 
@@ -204,6 +190,20 @@ export default function Index({ user }: Props) {
           <ArrowRight size={20} className="text-accent-foreground" />
         </div>
       </motion.button>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl mb-8">
+        {categories.map((cat, i) => (
+          <CategoryCard
+            key={cat.id}
+            category={cat}
+            index={i}
+            onClick={() => {
+              setSelectedCategory(cat.id);
+              setView("quiz");
+            }}
+          />
+        ))}
+      </div>
 
       <motion.p
         initial={{ opacity: 0 }}
