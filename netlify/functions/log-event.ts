@@ -1,5 +1,5 @@
 import type { Handler } from "@netlify/functions";
-import { store } from "./_blobs";
+import { bindBlobs, store } from "./_blobs";
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -21,6 +21,7 @@ export const handler: Handler = async (event) => {
 
   if (!payload.name) return { statusCode: 400, body: "Missing name" };
 
+  bindBlobs(event);
   const bucket = store("analytics", "eventual");
   const day = new Date().toISOString().slice(0, 10);
   const eventId = `${day}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.json`;

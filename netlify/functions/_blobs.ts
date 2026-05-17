@@ -1,28 +1,23 @@
-import { getStore } from "@netlify/blobs";
+import { connectLambda, getStore } from "@netlify/blobs";
+import type { HandlerEvent } from "@netlify/functions";
 
 /**
- * Returns a configured Blobs store.
+ * Wires Netlify Blobs into a classic v1 Lambda-style Netlify Function.
  *
- * In production, Netlify injects NETLIFY_BLOBS_CONTEXT as a base64-encoded
- * JSON env var ({siteID, token, primaryRegion, edgeURL, uncachedEdgeURL}).
- * The library is supposed to auto-detect this, but when esbuild bundles the
- * function the auto-detection path can break — so we decode it ourselves
- * and pass siteID + token explicitly. Falls back to the bare auto-config
- * call if the env var isn't present (e.g. during local dev).
+ * The Netlify runtime injects the Blobs site+token context into the lambda
+ * event's clientContext (not the process env, despite what most docs claim
+ * for esbuild-bundled functions). connectLambda(event) extracts it so the
+ * subsequent getStore() call works without arguments. Call this once per
+ * handler invocation, before any getStore() call.
  */
-export function store(name: string, consistency: "strong" | "eventual" = "eventual") {
-  const ctxRaw = process.env.NETLIFY_BLOBS_CONTEXT;
-  if (ctxRaw) {
-    try {
-      const ctx = JSON.parse(
-        Buffer.from(ctxRaw, "base64").toString("utf-8")
-      ) as { siteID?: string; token?: string };
-      if (ctx.siteID && ctx.token) {
-        return getStore({ name, siteID: ctx.siteID, token: ctx.token, consistency });
-      }
-    } catch {
-      /* fall through to bare auto-config */
-    }
+export function bindBlobs(event: HandlerEvent) {
+  try {
+    connectLambda(event);
+  } catch {
+    /* connectLambda is a no-op if context isn't there (local dev) */
   }
+}
+
+export function store(name: string, consistency: "strong" | "eventual" = "eventual") {
   return getStore({ name, consistency });
 }

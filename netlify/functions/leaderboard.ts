@@ -1,5 +1,5 @@
 import type { Handler } from "@netlify/functions";
-import { store } from "./_blobs";
+import { bindBlobs, store } from "./_blobs";
 import { isoWeekKey, startOfIsoWeek } from "../../src/lib/scoring";
 
 interface StoredEvent {
@@ -16,6 +16,7 @@ const SCORING_EVENTS = new Set(["quiz_question_answered", "wordle_won"]);
 export const handler: Handler = async (event) => {
   const limit = Math.min(parseInt(event.queryStringParameters?.limit ?? "3", 10) || 3, 20);
 
+  bindBlobs(event);
   const bucket = store("analytics", "strong");
   const { blobs } = await bucket.list();
 
