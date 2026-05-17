@@ -11,7 +11,7 @@ export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    netlifyIdentity.init({ APIUrl: "https://effulgent-parfait-7c389b.netlify.app/.netlify/identity" });
+    netlifyIdentity.init();
     setUser(netlifyIdentity.currentUser());
     setReady(true);
 
