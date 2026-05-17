@@ -21,7 +21,7 @@ export default function ProfileSetup({ user, onComplete }: Props) {
     const nick = nickname.trim();
     const sch = school.trim();
     if (!nick || !sch) {
-      setError("Por favor, preencha todos os campos.");
+      setError("Please fill in both fields.");
       return;
     }
     setSaving(true);
@@ -30,7 +30,7 @@ export default function ProfileSetup({ user, onComplete }: Props) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cu = netlifyIdentity.currentUser() as any;
     if (!cu) {
-      setError("Sessão expirou. Faz login de novo.");
+      setError("Your session expired. Please log in again.");
       setSaving(false);
       return;
     }
@@ -95,23 +95,23 @@ export default function ProfileSetup({ user, onComplete }: Props) {
         <div className="flex justify-center mb-4">
           <Wordmark size="md" pill />
         </div>
-        <h1 className="text-xl font-black mb-1">Quase pronto!</h1>
+        <h1 className="text-xl font-black mb-1">Almost done!</h1>
         <p className="text-sm text-muted-foreground font-semibold mb-6">
-          Conta criada para <strong>{user.email}</strong>. Agora diz-nos um pouco mais.
+          Account created for <strong>{user.email}</strong>. Tell us a bit more about you.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-left">
           <div>
             <label htmlFor="nickname" className="block text-sm font-bold mb-1">
               <UserCircle size={14} className="inline mr-1" />
-              Apelido (como quer ser chamado?)
+              Nickname (what should we call you?)
             </label>
             <input
               id="nickname"
               type="text"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="Ex: Gabi, Leozinho, SuperLeitor..."
+              placeholder="e.g. Sam, Bookworm, MathStar..."
               maxLength={30}
               className="w-full rounded-xl border-2 border-border bg-background px-4 py-2 text-sm font-semibold placeholder:text-muted-foreground focus:outline-none focus:border-primary transition"
             />
@@ -120,14 +120,14 @@ export default function ProfileSetup({ user, onComplete }: Props) {
           <div>
             <label htmlFor="school" className="block text-sm font-bold mb-1">
               <School size={14} className="inline mr-1" />
-              Nome da escola
+              School name
             </label>
             <input
               id="school"
               type="text"
               value={school}
               onChange={(e) => setSchool(e.target.value)}
-              placeholder="Ex: Escola Municipal Rui Barbosa"
+              placeholder="e.g. Kings College School Cascais"
               maxLength={80}
               className="w-full rounded-xl border-2 border-border bg-background px-4 py-2 text-sm font-semibold placeholder:text-muted-foreground focus:outline-none focus:border-primary transition"
             />
@@ -147,7 +147,7 @@ export default function ProfileSetup({ user, onComplete }: Props) {
             ) : (
               <ArrowRight size={18} />
             )}
-            {saving ? "Salvando..." : "Entrar no LookUp!"}
+            {saving ? "Saving..." : "Enter LookUp!"}
           </button>
         </form>
       </motion.div>

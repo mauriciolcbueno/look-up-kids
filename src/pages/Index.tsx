@@ -71,14 +71,14 @@ export default function Index({ user }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col items-center px-4 py-10">
-      <div className="w-full max-w-xl flex justify-between items-center mb-4">
-        <span className="text-xs font-bold text-muted-foreground">
+      <div className="w-full max-w-xl flex justify-between items-center gap-2 mb-4">
+        <span className="text-xs font-bold text-muted-foreground truncate min-w-0">
           Hi, {(() => {
             const meta = (user?.user_metadata ?? {}) as Record<string, string | undefined>;
             return meta.nickname || meta.full_name || user?.email || "friend";
           })()} 👋
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {isAdmin && (
             <Link
               to="/admin"
@@ -90,8 +90,9 @@ export default function Index({ user }: Props) {
           <button
             onClick={() => netlifyIdentity.logout()}
             className="inline-flex items-center gap-1 text-xs font-bold bg-muted hover:bg-danger/20 rounded-full px-3 py-1.5 transition"
+            aria-label="Sign out"
           >
-            <LogOut size={12} /> Sign out
+            <LogOut size={12} /> <span className="hidden sm:inline">Sign out</span>
           </button>
         </div>
       </div>

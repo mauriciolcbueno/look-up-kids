@@ -7,8 +7,8 @@ interface Props {
 
 const TEXT_SIZE = {
   sm: "text-3xl md:text-4xl",
-  md: "text-5xl md:text-6xl",
-  lg: "text-6xl md:text-7xl",
+  md: "text-4xl md:text-6xl",
+  lg: "text-5xl md:text-7xl",
 };
 
 export default function Wordmark({
