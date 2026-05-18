@@ -14,9 +14,38 @@ const BLOCKED = [
   "how to make meth", "how to make drugs", "cocaine recipe",
 ];
 
+// Wikipedia article titles that should never reach the AI even if the
+// search lands on them. Matched as a case-insensitive substring against
+// the full title — so "Testicle" blocks "Testicle (anatomy)" too.
+const BLOCKED_TITLES = [
+  // anatomy / sexual topics (kids' search bar mistakes can surface these)
+  "testicle", "penis", "vagina", "vulva", "clitoris", "breast",
+  "scrotum", "anus", "anal ", "orgasm", "ejaculation", "masturbat",
+  "intercourse", "sexual ", "intercourse", "fetish",
+  "pregnan", "menstr", "abortion", "contracepti",
+  // explicit / violent media
+  "pornograph", "prostitut", "rape", "molest",
+  // hate / atrocities (kids should learn these via teachers/parents, not AI)
+  "holocaust", "genocide", "slavery",
+  // drugs / overdose
+  "heroin", "cocaine", "methamphetamine", "fentanyl", "overdose", "drug abuse",
+  // suicide / self-harm
+  "suicide", "self-harm",
+];
+
 function isBlocked(q: string): boolean {
   const lower = q.toLowerCase();
   return BLOCKED.some((b) => lower.includes(b));
+}
+
+function isBlockedTitle(title: string): boolean {
+  const lower = title.toLowerCase();
+  return BLOCKED_TITLES.some((b) => lower.includes(b));
+}
+
+// Tiny sleep helper for retry backoff.
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 interface WikiSummary {
@@ -126,7 +155,7 @@ function scoreTitle(title: string): number {
   return score;
 }
 
-async function searchWikipedia(query: string): Promise<WikiSummary | null> {
+async function searchWikipedia(query: string): Promise<WikiSummary | null | "blocked"> {
   const distilled = distillQuery(query);
 
   const pools = await Promise.all([
@@ -153,7 +182,14 @@ async function searchWikipedia(query: string): Promise<WikiSummary | null> {
     .sort((a, b) => b[1] - a[1])
     .map(([title]) => title);
 
+  // If the FIRST candidate is a blocked topic, the user almost certainly
+  // typed something inappropriate (or so vague Wikipedia surfaced something
+  // inappropriate). Refuse the whole request rather than silently moving on
+  // to a different article that might also be questionable.
+  if (ranked[0] && isBlockedTitle(ranked[0])) return "blocked";
+
   for (const title of ranked) {
+    if (isBlockedTitle(title)) continue;
     const summary = await fetchSummary(title);
     if (summary && summary.extract.length > 60) return summary;
   }
@@ -194,6 +230,17 @@ export const handler: Handler = async (event) => {
   if (!question) {
     return { statusCode: 400, body: JSON.stringify({ status: "error", reason: "Empty question" }) };
   }
+  // Reject ultra-short queries — they tend to surface random Wikipedia
+  // entries that aren't what the kid meant ("test" -> "Testicle", etc).
+  if (question.length < 4) {
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        status: "ok",
+        answer: "Hmm, can you ask me a longer question? Like 'How does an octopus camouflage?'",
+      }),
+    };
+  }
   if (question.length > 300) {
     return { statusCode: 400, body: JSON.stringify({ status: "error", reason: "Question too long" }) };
   }
@@ -217,6 +264,12 @@ export const handler: Handler = async (event) => {
   }
 
   const wiki = await searchWikipedia(question);
+  if (wiki === "blocked") {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ status: "blocked", reason: "topic" }),
+    };
+  }
   if (!wiki || !wiki.extract) {
     return {
       statusCode: 200,
@@ -228,18 +281,37 @@ export const handler: Handler = async (event) => {
   }
 
   const client = new Anthropic({ apiKey });
+  // Retry on transient Anthropic overloads (529) and rate limits (429).
+  // Backoff: 500ms, then 1500ms.
+  const MAX_ATTEMPTS = 3;
+  const BACKOFF_MS = [500, 1500];
+  let completion;
   try {
-    const completion = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 220,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `Wikipedia article: "${wiki.title}"\n\nWikipedia excerpt:\n${wiki.extract}\n\nKid's question: ${question}`,
-        },
-      ],
-    });
+    let lastErr: unknown = null;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        completion = await client.messages.create({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 220,
+          system: SYSTEM_PROMPT,
+          messages: [
+            {
+              role: "user",
+              content: `Wikipedia article: "${wiki.title}"\n\nWikipedia excerpt:\n${wiki.extract}\n\nKid's question: ${question}`,
+            },
+          ],
+        });
+        lastErr = null;
+        break;
+      } catch (err) {
+        lastErr = err;
+        const status = (err as { status?: number }).status;
+        const transient = status === 429 || status === 529 || (status !== undefined && status >= 500);
+        if (!transient || attempt === MAX_ATTEMPTS) throw err;
+        await delay(BACKOFF_MS[attempt - 1] ?? 1500);
+      }
+    }
+    if (!completion) throw lastErr ?? new Error("no completion");
 
     const text = completion.content
       .filter((c): c is Anthropic.TextBlock => c.type === "text")
@@ -256,9 +328,16 @@ export const handler: Handler = async (event) => {
       }),
     };
   } catch (err) {
+    const status = (err as { status?: number }).status;
+    const isOverload = status === 429 || status === 529;
     return {
-      statusCode: 500,
-      body: JSON.stringify({ status: "error", reason: (err as Error).message }),
+      statusCode: 200,
+      body: JSON.stringify({
+        status: "ok",
+        answer: isOverload
+          ? "I'm a little busy right now! Try asking again in a few seconds."
+          : "Something went wrong on my side. Try asking it a different way!",
+      }),
     };
   }
 };
