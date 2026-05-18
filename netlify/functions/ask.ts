@@ -280,11 +280,12 @@ export const handler: Handler = async (event) => {
     };
   }
 
-  const client = new Anthropic({ apiKey });
-  // Retry on transient Anthropic overloads (529) and rate limits (429).
-  // Backoff: 500ms, then 1500ms.
-  const MAX_ATTEMPTS = 3;
-  const BACKOFF_MS = [500, 1500];
+  // Netlify Functions max out at 10s; total wall budget for the Anthropic
+  // call(s) must fit inside that with margin. Two attempts, 4s timeout each,
+  // 300ms backoff = ~8.3s worst case.
+  const client = new Anthropic({ apiKey, timeout: 4000, maxRetries: 0 });
+  const MAX_ATTEMPTS = 2;
+  const BACKOFF_MS = 300;
   let completion;
   try {
     let lastErr: unknown = null;
@@ -306,9 +307,13 @@ export const handler: Handler = async (event) => {
       } catch (err) {
         lastErr = err;
         const status = (err as { status?: number }).status;
-        const transient = status === 429 || status === 529 || (status !== undefined && status >= 500);
+        const name = (err as { name?: string }).name;
+        const transient =
+          status === 429 || status === 529 ||
+          (status !== undefined && status >= 500) ||
+          name === "APIConnectionTimeoutError";
         if (!transient || attempt === MAX_ATTEMPTS) throw err;
-        await delay(BACKOFF_MS[attempt - 1] ?? 1500);
+        await delay(BACKOFF_MS);
       }
     }
     if (!completion) throw lastErr ?? new Error("no completion");
