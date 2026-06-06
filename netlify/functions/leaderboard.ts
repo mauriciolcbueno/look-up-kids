@@ -1,6 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { bindBlobs, store } from "./_blobs";
 import { isoWeekKey, startOfIsoWeek } from "../../src/lib/scoring";
+import { buildPlaceholders } from "./_placeholders";
 
 interface StoredEvent {
   name: string;
@@ -80,10 +81,34 @@ export const handler: Handler = async (event) => {
     totals.set(data.userId, entry);
   }
 
-  const ranked = [...totals.entries()]
-    .map(([userId, v]) => ({ userId, displayName: v.displayName, points: v.points }))
+  const week = isoWeekKey();
+
+  const realRanked = [...totals.entries()]
+    .map(([userId, v]) => ({
+      userId,
+      displayName: v.displayName,
+      points: v.points,
+      placeholder: false as const,
+    }))
     .sort((a, b) => b.points - a.points)
     .slice(0, limit);
+
+  // Fill remaining slots with this week's placeholder players so a solo kid
+  // sees a populated podium (rotates weekly, easy to beat).
+  // We always fill from the STRONGEST placeholder down, then sort by points.
+  // That way a low-scoring real kid still appears on the podium (e.g. at #3)
+  // with placeholder rivals above to aspire to, instead of an empty board.
+  const top: Array<
+    | (typeof realRanked)[number]
+    | { userId: string; displayName: string; points: number; placeholder: true }
+  > = [...realRanked];
+  if (top.length < limit) {
+    const placeholders = buildPlaceholders(week, limit);
+    for (let i = 0; i < placeholders.length && top.length < limit; i++) {
+      top.push(placeholders[i]);
+    }
+  }
+  top.sort((a, b) => b.points - a.points);
 
   return {
     statusCode: 200,
@@ -93,9 +118,9 @@ export const handler: Handler = async (event) => {
       "Cache-Control": "public, max-age=10",
     },
     body: JSON.stringify({
-      week: isoWeekKey(),
+      week,
       resetsAt: addDays(startOfIsoWeek(), 7).toISOString(),
-      top: ranked,
+      top,
     }),
   };
 };
