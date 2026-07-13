@@ -9,15 +9,46 @@ interface StoredProfile {
   createdAt: number;
 }
 
-function isAdmin(event: HandlerEvent): boolean {
-  const ctx = (event as unknown as { clientContext?: { user?: { app_metadata?: { roles?: string[] } } } })
-    .clientContext;
-  const roles = ctx?.user?.app_metadata?.roles ?? [];
-  return roles.includes("admin");
+interface WithContext {
+  clientContext?: {
+    user?: {
+      email?: string;
+      app_metadata?: { roles?: string[] };
+    };
+  };
+}
+
+function adminCheck(event: HandlerEvent): { ok: true } | { ok: false; reason: string; seen: unknown } {
+  const ctx = (event as unknown as WithContext).clientContext;
+  const authHeader =
+    event.headers?.authorization ?? event.headers?.Authorization ?? null;
+  if (!ctx?.user) {
+    return {
+      ok: false,
+      reason: "No Netlify Identity user in clientContext (JWT missing or invalid)",
+      seen: { hasAuthHeader: !!authHeader, clientContext: ctx ?? null },
+    };
+  }
+  const roles = ctx.user.app_metadata?.roles ?? [];
+  if (!roles.includes("admin")) {
+    return {
+      ok: false,
+      reason: "User has no 'admin' role in app_metadata.roles",
+      seen: { email: ctx.user.email, roles, app_metadata: ctx.user.app_metadata },
+    };
+  }
+  return { ok: true };
 }
 
 export const handler: Handler = async (event) => {
-  if (!isAdmin(event)) return { statusCode: 403, body: "Forbidden" };
+  const check = adminCheck(event);
+  if (!check.ok) {
+    return {
+      statusCode: 403,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "Forbidden", reason: check.reason, seen: check.seen }),
+    };
+  }
 
   bindBlobs(event);
   const bucket = store("profiles", "eventual");

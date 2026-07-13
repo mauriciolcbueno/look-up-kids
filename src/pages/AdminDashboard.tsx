@@ -48,11 +48,19 @@ export default function AdminDashboard({ user }: Props) {
     try {
       const token = await jwtFor(user);
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      if (!token) {
+        setError("No auth token available. Try signing out and back in.");
+        return;
+      }
       const [statsRes, profRes] = await Promise.all([
         fetch("/.netlify/functions/admin-stats", { headers }),
         fetch("/.netlify/functions/admin-profiles", { headers }),
       ]);
-      if (!statsRes.ok) throw new Error(`stats ${statsRes.status}`);
+      if (!statsRes.ok) {
+        const body = await statsRes.json().catch(() => ({}));
+        const reason = (body as { reason?: string }).reason ?? `HTTP ${statsRes.status}`;
+        throw new Error(reason);
+      }
       setStats(await statsRes.json());
       if (profRes.ok) {
         const data = (await profRes.json()) as { profiles: Profile[] };
