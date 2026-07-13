@@ -1,4 +1,4 @@
-import type { Handler, HandlerEvent } from "@netlify/functions";
+import type { Handler, HandlerEvent, HandlerResponse } from "@netlify/functions";
 import { bindBlobs, store } from "./_blobs";
 
 interface StoredProfile {
@@ -43,11 +43,12 @@ function adminCheck(event: HandlerEvent): { ok: true } | { ok: false; reason: st
 export const handler: Handler = async (event) => {
   const check = adminCheck(event);
   if (!check.ok) {
-    return {
+    const forbidden: HandlerResponse = {
       statusCode: 403,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Forbidden", reason: check.reason, seen: check.seen }),
     };
+    return forbidden;
   }
 
   bindBlobs(event);
@@ -65,9 +66,10 @@ export const handler: Handler = async (event) => {
 
   profiles.sort((a, b) => b.createdAt - a.createdAt);
 
-  return {
+  const ok: HandlerResponse = {
     statusCode: 200,
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
     body: JSON.stringify({ total: profiles.length, profiles }),
   };
+  return ok;
 };
