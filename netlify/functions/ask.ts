@@ -43,11 +43,6 @@ function isBlockedTitle(title: string): boolean {
   return BLOCKED_TITLES.some((b) => lower.includes(b));
 }
 
-// Tiny sleep helper for retry backoff.
-function delay(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 interface WikiSummary {
   title: string;
   extract: string;
@@ -282,43 +277,25 @@ export const handler: Handler = async (event) => {
     };
   }
 
-  // Netlify Functions max out at 10s; total wall budget for the Anthropic
-  // call(s) must fit inside that with margin. Two attempts, 4s timeout each,
-  // 300ms backoff = ~8.3s worst case.
-  const client = new Anthropic({ apiKey, timeout: 4000, maxRetries: 0 });
-  const MAX_ATTEMPTS = 2;
-  const BACKOFF_MS = 300;
+  // Netlify Functions max out at 10s. We give the Anthropic call an 8s
+  // budget in a single attempt — real Haiku latency is usually 1-3s but
+  // occasionally spikes to 5-6s. Retrying inside the same request rarely
+  // helps (if the model is slow now, it's slow), so we take one shot and
+  // fall back to a friendly message if it doesn't fit in time.
+  const client = new Anthropic({ apiKey, timeout: 8000, maxRetries: 0 });
   let completion;
   try {
-    let lastErr: unknown = null;
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      try {
-        completion = await client.messages.create({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 220,
-          system: SYSTEM_PROMPT,
-          messages: [
-            {
-              role: "user",
-              content: `Wikipedia article: "${wiki.title}"\n\nWikipedia excerpt:\n${wiki.extract}\n\nKid's question: ${question}`,
-            },
-          ],
-        });
-        lastErr = null;
-        break;
-      } catch (err) {
-        lastErr = err;
-        const status = (err as { status?: number }).status;
-        const name = (err as { name?: string }).name;
-        const transient =
-          status === 429 || status === 529 ||
-          (status !== undefined && status >= 500) ||
-          name === "APIConnectionTimeoutError";
-        if (!transient || attempt === MAX_ATTEMPTS) throw err;
-        await delay(BACKOFF_MS);
-      }
-    }
-    if (!completion) throw lastErr ?? new Error("no completion");
+    completion = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 220,
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: `Wikipedia article: "${wiki.title}"\n\nWikipedia excerpt:\n${wiki.extract}\n\nKid's question: ${question}`,
+        },
+      ],
+    });
 
     const text = completion.content
       .filter((c): c is Anthropic.TextBlock => c.type === "text")
