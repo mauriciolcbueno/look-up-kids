@@ -41,21 +41,54 @@ export default function AdminDashboard({ user }: Props) {
   const [profiles, setProfiles] = useState<Profile[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  async function tryFetch(token: string) {
+    const headers = { Authorization: `Bearer ${token}` };
+    const [statsRes, profRes] = await Promise.all([
+      fetch("/.netlify/functions/admin-stats", { headers }),
+      fetch("/.netlify/functions/admin-profiles", { headers }),
+    ]);
+    return { statsRes, profRes };
+  }
 
   async function load() {
     setLoading(true);
     setError(null);
+    setSessionExpired(false);
     try {
-      const token = await jwtFor(user);
-      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      // First try with whatever token the widget has cached
+      let token = await jwtFor(user);
       if (!token) {
-        setError("No auth token available. Try signing out and back in.");
+        setSessionExpired(true);
         return;
       }
-      const [statsRes, profRes] = await Promise.all([
-        fetch("/.netlify/functions/admin-stats", { headers }),
-        fetch("/.netlify/functions/admin-profiles", { headers }),
-      ]);
+      let { statsRes, profRes } = await tryFetch(token);
+
+      // If server didn't recognize the JWT, force a refresh and retry once.
+      // This handles the common case of an expired but refreshable session.
+      if (statsRes.status === 403) {
+        const body = await statsRes.clone().json().catch(() => ({}));
+        const reason = (body as { reason?: string }).reason;
+        if (reason?.includes("JWT missing or invalid")) {
+          const refreshed = await jwtFor(user, true);
+          if (!refreshed) {
+            setSessionExpired(true);
+            return;
+          }
+          ({ statsRes, profRes } = await tryFetch(refreshed));
+          if (statsRes.status === 403) {
+            const body2 = await statsRes.json().catch(() => ({}));
+            const reason2 = (body2 as { reason?: string }).reason;
+            if (reason2?.includes("JWT missing or invalid")) {
+              setSessionExpired(true);
+              return;
+            }
+            throw new Error(reason2 ?? "Forbidden after refresh");
+          }
+        }
+      }
+
       if (!statsRes.ok) {
         const body = await statsRes.json().catch(() => ({}));
         const reason = (body as { reason?: string }).reason ?? `HTTP ${statsRes.status}`;
@@ -122,7 +155,25 @@ export default function AdminDashboard({ user }: Props) {
         </div>
       )}
 
-      {error && (
+      {sessionExpired && (
+        <div className="bg-primary/10 border-2 border-primary/40 rounded-2xl p-4">
+          <p className="font-extrabold mb-2">Your session expired</p>
+          <p className="text-sm font-semibold text-muted-foreground mb-3">
+            Sign in again to see the dashboard.
+          </p>
+          <button
+            onClick={() => {
+              netlifyIdentity.logout();
+              setTimeout(() => netlifyIdentity.open(), 200);
+            }}
+            className="inline-flex items-center gap-1 text-sm font-bold bg-primary text-primary-foreground rounded-full px-4 py-2 shadow-soft"
+          >
+            Sign in again
+          </button>
+        </div>
+      )}
+
+      {error && !sessionExpired && (
         <div className="bg-danger/10 border-2 border-danger/30 rounded-2xl p-4 font-bold">
           Couldn't load stats: {error}
         </div>
