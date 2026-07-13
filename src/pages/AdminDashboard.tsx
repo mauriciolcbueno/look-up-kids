@@ -43,6 +43,18 @@ export default function AdminDashboard({ user }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
 
+  function isSessionReason(reason: string | undefined): boolean {
+    if (!reason) return false;
+    const r = reason.toLowerCase();
+    return (
+      r.includes("jwt missing or invalid") ||
+      r.includes("missing authorization") ||
+      r.includes("rejected the token") ||
+      r.includes("expired") ||
+      r.includes("invalid")
+    );
+  }
+
   async function tryFetch(token: string) {
     const headers = { Authorization: `Bearer ${token}` };
     const [statsRes, profRes] = await Promise.all([
@@ -70,7 +82,7 @@ export default function AdminDashboard({ user }: Props) {
       if (statsRes.status === 403) {
         const body = await statsRes.clone().json().catch(() => ({}));
         const reason = (body as { reason?: string }).reason;
-        if (reason?.includes("JWT missing or invalid")) {
+        if (isSessionReason(reason)) {
           const refreshed = await jwtFor(user, true);
           if (!refreshed) {
             setSessionExpired(true);

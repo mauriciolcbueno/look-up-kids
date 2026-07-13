@@ -1,5 +1,6 @@
-import type { Handler, HandlerEvent } from "@netlify/functions";
+import type { Handler } from "@netlify/functions";
 import { bindBlobs, store } from "./_blobs";
+import { verifyAdmin } from "./_admin";
 
 interface Event {
   name: string;
@@ -9,42 +10,11 @@ interface Event {
   day: string;
 }
 
-interface WithContext {
-  clientContext?: {
-    user?: {
-      email?: string;
-      app_metadata?: { roles?: string[] };
-    };
-  };
-}
-
-function adminCheck(event: HandlerEvent): { ok: true } | { ok: false; reason: string; seen: unknown } {
-  const ctx = (event as unknown as WithContext).clientContext;
-  const authHeader =
-    event.headers?.authorization ?? event.headers?.Authorization ?? null;
-  if (!ctx?.user) {
-    return {
-      ok: false,
-      reason: "No Netlify Identity user in clientContext (JWT missing or invalid)",
-      seen: { hasAuthHeader: !!authHeader, clientContext: ctx ?? null },
-    };
-  }
-  const roles = ctx.user.app_metadata?.roles ?? [];
-  if (!roles.includes("admin")) {
-    return {
-      ok: false,
-      reason: "User has no 'admin' role in app_metadata.roles",
-      seen: { email: ctx.user.email, roles, app_metadata: ctx.user.app_metadata },
-    };
-  }
-  return { ok: true };
-}
-
 export const handler: Handler = async (event) => {
-  const check = adminCheck(event);
+  const check = await verifyAdmin(event);
   if (!check.ok) {
     return {
-      statusCode: 403,
+      statusCode: check.status,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Forbidden", reason: check.reason, seen: check.seen }),
     };
